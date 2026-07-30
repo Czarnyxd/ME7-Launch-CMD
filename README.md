@@ -26,7 +26,7 @@ You can configure:
 * 🎮 Activation Trigger
 
   * Clutch ( Manual transmission )
-  * Brake. ( DSG transmission )
+  * Brake  ( DSG transmission )
 
 All configuration is performed directly from the Windows Command Prompt.
 
