@@ -21,6 +21,7 @@ You can configure:
 * 🔥 RPM Threshold
 * ⚡ Throttle Threshold
 * ⏱️ Ignition Cut Duration
+* 🌡️ Minimum Temperature Threshold
 * 🔊 Soft Cut / Hard Cut
 * 🎮 Activation Trigger
 
