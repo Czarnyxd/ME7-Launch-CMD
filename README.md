@@ -25,8 +25,8 @@ You can configure:
 * 🔊 Soft Cut / Hard Cut
 * 🎮 Activation Trigger
 
-  * Clutch  Manual transmission 
-  * Brake   DSG transmission 
+  * Clutch ( Manual transmission )
+  * Brake  ( DSG transmission )
 
 All configuration is performed directly from the Windows Command Prompt.
 
