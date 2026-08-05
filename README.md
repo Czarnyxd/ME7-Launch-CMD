@@ -1,21 +1,3 @@
-## 🌍 Open Source
-
-**ME7 Launch Control CMD V2** is a fully **open-source** project.
-
-The complete source code is publicly available in this repository, allowing anyone to inspect, learn from, modify, and improve the project.
-
-Bug reports, feature requests, suggestions, and Pull Requests are always welcome.
-
-The goal of this project is to provide the Bosch ME7 community with a transparent, free, and continuously evolving solution for installing and configuring Rolling Anti-Lag.
-
-This is my **first project published on GitHub**, so I kindly ask for your understanding if there are things that could be improved. 😊
-
-I'm always open to feedback, constructive criticism, and new ideas. If you find a bug or have a suggestion for improving the project, please feel free to open an **Issue** or submit a **Pull Request**.
-
-I hope this project proves useful to the Bosch ME7 community and continues to grow with the support and contributions of its users.
-
-
-
 # 🚀 ME7 Launch Control CMD V2
 
 > **A modern Launch Control installer and configurator for Bosch ME7 / ME7.5 ECUs, running entirely from the Windows Command Prompt (CMD).**
@@ -260,6 +242,24 @@ The Launch Control function used in this project is based on an implementation t
 Unfortunately, I was unable to identify the original author or locate an official GitHub repository containing the original implementation. Therefore, I could not provide proper attribution.
 
 If you are the original author—or know who is—I would be happy to add proper credit to this project.
+
+
+## 🌍 Open Source
+
+**ME7 Launch Control CMD V2** is a fully **open-source** project.
+
+The complete source code is publicly available in this repository, allowing anyone to inspect, learn from, modify, and improve the project.
+
+Bug reports, feature requests, suggestions, and Pull Requests are always welcome.
+
+The goal of this project is to provide the Bosch ME7 community with a transparent, free, and continuously evolving solution for installing and configuring Rolling Anti-Lag.
+
+This is my **first project published on GitHub**, so I kindly ask for your understanding if there are things that could be improved. 😊
+
+I'm always open to feedback, constructive criticism, and new ideas. If you find a bug or have a suggestion for improving the project, please feel free to open an **Issue** or submit a **Pull Request**.
+
+I hope this project proves useful to the Bosch ME7 community and continues to grow with the support and contributions of its users.
+
 
 ---
 
