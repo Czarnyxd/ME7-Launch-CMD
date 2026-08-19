@@ -15,7 +15,7 @@ The program:
 - immediately enters configuration mode,
 - detects its own previous installation,
 - stores the original FTOMN value,
-- lets the user select Soft Cut (FTOMN 0x05) or Hard Cut (FTOMN 0x00),
+- uses Hard Cut only (FTOMN 0x00),
 - restores the original hook bytes and FTOMN when --remove is used,
 - never overwrites the input BIN.
 
@@ -50,7 +50,7 @@ DEFAULT_NLS_COUNTER = 0x384FF0
 MARKER = b"ME7LC001"
 MARKER_OFFSET = 10
 METADATA_VERSION_OFFSET = 18
-SOFT_CUT_OFFSET = 19
+CUT_MODE_RESERVED_OFFSET = 19
 ORIGINAL_FTOMN_OFFSET = 20
 FTOMN_ADDRESS_OFFSET = 22
 CODE_CAVE_ADDRESS_OFFSET = 26
@@ -64,7 +64,6 @@ DEFAULT_LAUNCH_RPM = 4500
 DEFAULT_RPM_THRESHOLD = 5500
 DEFAULT_ACCELERATOR_PERCENT = 90.0
 DEFAULT_IGNITION_CUT_MS = 200
-FTOMN_SOFT_CUT = 0x05
 FTOMN_HARD_CUT = 0x00
 
 TRIGGER_CLUTCH = "Clutch"
@@ -90,7 +89,6 @@ class Installation:
     ftomn_address: int
     original_ftomn: int
     original_hook_bytes: bytes
-    soft_cut: bool
     normal_ignition_raw: int
     managed: bool = True
 
@@ -102,7 +100,6 @@ class Configuration:
     rpm_threshold: int
     accelerator_percent: float
     ignition_cut_ms: int
-    soft_cut: bool = False
     minimum_temperature: int = 75
     trigger: str = TRIGGER_CLUTCH
 
@@ -769,7 +766,6 @@ def read_configuration(data: bytes | bytearray, address: int) -> Configuration:
     )
     pedal_raw = data[address + 8]
     temperature_raw = data[address + 9]
-    soft_cut = bool(data[address + SOFT_CUT_OFFSET])
 
     return Configuration(
         speed_kmh=decode_speed(speed_raw),
@@ -778,7 +774,6 @@ def read_configuration(data: bytes | bytearray, address: int) -> Configuration:
         accelerator_percent=decode_pedal(pedal_raw),
         ignition_cut_ms=decode_ignition_ms(ignition_raw),
         minimum_temperature=decode_temperature(temperature_raw),
-        soft_cut=soft_cut,
     )
 
 
@@ -801,7 +796,7 @@ def write_configuration(
         encode_pedal(configuration.accelerator_percent),
     )
     data[address + 9] = encode_temperature(configuration.minimum_temperature)
-    data[address + SOFT_CUT_OFFSET] = 1 if configuration.soft_cut else 0
+    data[address + CUT_MODE_RESERVED_OFFSET] = 0
     struct.pack_into("<H", data, address + NORMAL_IGNITION_RAW_OFFSET, normal_ignition_raw)
     return ignition_raw
 
@@ -815,12 +810,11 @@ def write_metadata(
     ftomn_address: int,
     original_ftomn: int,
     original_hook_bytes: bytes,
-    soft_cut: bool,
     normal_ignition_raw: int,
 ) -> None:
     data[config_address + MARKER_OFFSET : config_address + MARKER_OFFSET + len(MARKER)] = MARKER
     data[config_address + METADATA_VERSION_OFFSET] = 1
-    data[config_address + SOFT_CUT_OFFSET] = 1 if soft_cut else 0
+    data[config_address + CUT_MODE_RESERVED_OFFSET] = 0
     data[config_address + ORIGINAL_FTOMN_OFFSET] = original_ftomn
     data[config_address + 21] = 0xFF
     struct.pack_into("<I", data, config_address + FTOMN_ADDRESS_OFFSET, ftomn_address)
@@ -882,7 +876,6 @@ def detect_installation(data: bytes) -> Optional[Installation]:
                 config_address + ORIGINAL_HOOK_BYTES_OFFSET :
                 config_address + ORIGINAL_HOOK_BYTES_OFFSET + 4
             ],
-            soft_cut=bool(data[config_address + SOFT_CUT_OFFSET]),
             normal_ignition_raw=normal_ignition_raw,
             managed=True,
         )
@@ -902,7 +895,6 @@ LEGACY_CONDITION_OFFSETS = {
 def read_legacy_configuration(
     data: bytes | bytearray,
     address: int,
-    ftomn_value: int,
 ) -> Configuration:
     """Read only the original 9-byte Setzi configuration block."""
     speed_raw, launch_raw, ignition_raw, rpm_threshold_raw = struct.unpack_from(
@@ -916,7 +908,6 @@ def read_legacy_configuration(
         rpm_threshold=decode_rpm(rpm_threshold_raw),
         accelerator_percent=decode_pedal(pedal_raw),
         ignition_cut_ms=decode_ignition_ms(ignition_raw),
-        soft_cut=(ftomn_value == FTOMN_SOFT_CUT),
     )
 
 
@@ -1092,10 +1083,9 @@ def find_compatible_setzi_installation(
             code_cave_address=function_address,
             hook_address=hook_address,
             ftomn_address=ftomn_address,
-            original_ftomn=FTOMN_SOFT_CUT,
+            original_ftomn=ftomn_value,
             original_hook_bytes=b"",
-            soft_cut=(ftomn_value == FTOMN_SOFT_CUT),
-            normal_ignition_raw=ignition_raw,
+                normal_ignition_raw=ignition_raw,
             managed=False,
         )
 
@@ -1109,7 +1099,6 @@ def default_configuration() -> Configuration:
         accelerator_percent=DEFAULT_ACCELERATOR_PERCENT,
         ignition_cut_ms=DEFAULT_IGNITION_CUT_MS,
         minimum_temperature=75,
-        soft_cut=False,
     )
 
 
@@ -1215,8 +1204,7 @@ def configure(current: Configuration, normal_ignition_ms: int) -> Configuration:
     print(f"  Minimum Temperature       : {current.minimum_temperature} °C")
     print(f"  Activation Trigger        : {current.trigger}")
     print(
-        f"  Cut Mode >>Experimental<< : "
-        f"{'Soft Cut (FTOMN 0x05)' if current.soft_cut else 'Hard Cut (FTOMN 0x00)'}"
+        "  Cut Mode                  : Hard Cut (FTOMN 0x00)"
     )
     print()
     print("Press ENTER to keep the current value.")
@@ -1247,11 +1235,6 @@ def configure(current: Configuration, normal_ignition_ms: int) -> Configuration:
 
     trigger = prompt_trigger(current.trigger)
 
-    print()
-    print("CUT MODE")
-    print("  Soft Cut ON  = FTOMN 0x05 (stock value)")
-    print("  Soft Cut OFF = FTOMN 0x00 (hard cut)")
-    soft_cut = prompt_yes_no("Enable Soft Cut?", current.soft_cut)
 
     result = Configuration(
         speed_kmh=speed,
@@ -1260,11 +1243,10 @@ def configure(current: Configuration, normal_ignition_ms: int) -> Configuration:
         accelerator_percent=accelerator,
         ignition_cut_ms=ignition_ms,
         minimum_temperature=minimum_temperature,
-        soft_cut=soft_cut,
         trigger=trigger,
     )
 
-    selected_ftomn = FTOMN_SOFT_CUT if result.soft_cut else FTOMN_HARD_CUT
+    selected_ftomn = FTOMN_HARD_CUT
 
     print()
     print("=" * 64)
@@ -1277,10 +1259,7 @@ def configure(current: Configuration, normal_ignition_ms: int) -> Configuration:
     print(f"  Ignition Cut Duration  : {result.ignition_cut_ms} ms")
     print(f"  Minimum Temperature    : {result.minimum_temperature} °C")
     print(f"  Activation Trigger     : {result.trigger}")
-    print(
-        f"  Cut Mode               : "
-        f"{'Soft Cut' if result.soft_cut else 'Hard Cut'}"
-    )
+    print("  Cut Mode               : Hard Cut")
     print(f"  FTOMN Value            : 0x{selected_ftomn:02X}")
     print()
 
@@ -1404,7 +1383,6 @@ def migrate_native_installation_to_setzi_visible_area(
         ftomn_address=installation.ftomn_address,
         original_ftomn=installation.original_ftomn,
         original_hook_bytes=installation.original_hook_bytes,
-        soft_cut=installation.soft_cut,
         normal_ignition_raw=installation.normal_ignition_raw,
     )
 
@@ -1530,7 +1508,6 @@ def install(
         ftomn_address=ftomn_address,
         original_ftomn=original_ftomn,
         original_hook_bytes=original_hook,
-        soft_cut=defaults.soft_cut,
         normal_ignition_raw=normal_ignition_raw,
     )
 
@@ -1718,14 +1695,9 @@ def main() -> int:
         info("Installation skipped.")
 
         current_ftomn = data[installation.ftomn_address]
-        mode = (
-            "Soft Cut"
-            if current_ftomn == FTOMN_SOFT_CUT
-            else "Hard Cut"
-            if current_ftomn == FTOMN_HARD_CUT
-            else "Custom"
-        )
-        info(f"Current FTOMN value: 0x{current_ftomn:02X} ({mode})")
+        info(f"Current FTOMN value: 0x{current_ftomn:02X}")
+        if current_ftomn != FTOMN_HARD_CUT:
+            warn("FTOMN is not 0x00 and will be forced to Hard Cut when saved.")
 
     info("Entering configuration mode.")
 
@@ -1758,20 +1730,8 @@ def main() -> int:
     if installation.managed:
         current = read_configuration(data, installation.config_address)
 
-        # For native installations, the stored flag remains the primary source.
-        expected_ftomn = (
-            FTOMN_SOFT_CUT if current.soft_cut else FTOMN_HARD_CUT
-        )
-        if current_ftomn != expected_ftomn:
-            warn(
-                f"Stored Cut Mode and FTOMN do not match: "
-                f"stored mode is {'Soft Cut' if current.soft_cut else 'Hard Cut'}, "
-                f"but FTOMN is 0x{current_ftomn:02X}."
-            )
-            warn(
-                f"FTOMN will be synchronized to 0x{expected_ftomn:02X} "
-                "when the configuration is saved."
-            )
+        if current_ftomn != FTOMN_HARD_CUT:
+            warn("FTOMN will be forced to 0x00 (Hard Cut) when the configuration is saved.")
 
         normal_ignition_raw = installation.normal_ignition_raw
         if normal_ignition_raw in (0, 0xFFFF):
@@ -1780,7 +1740,6 @@ def main() -> int:
         current = read_legacy_configuration(
             data,
             installation.config_address,
-            current_ftomn,
         )
         normal_ignition_raw = encode_ignition_ms(current.ignition_cut_ms)
 
@@ -1800,14 +1759,9 @@ def main() -> int:
     )
     ok(f"Activation Trigger set to {configured.trigger}")
 
-    selected_ftomn = (
-        FTOMN_SOFT_CUT if configured.soft_cut else FTOMN_HARD_CUT
-    )
+    selected_ftomn = FTOMN_HARD_CUT
     data[installation.ftomn_address] = selected_ftomn
-    ok(
-        f"FTOMN set to 0x{selected_ftomn:02X} "
-        f"({'Soft Cut' if configured.soft_cut else 'Hard Cut'})"
-    )
+    ok("FTOMN set to 0x00 (Hard Cut)")
 
     if installation.managed:
         normal_ignition_raw = encode_ignition_ms(configured.ignition_cut_ms)
@@ -1825,7 +1779,6 @@ def main() -> int:
             ftomn_address=installation.ftomn_address,
             original_ftomn=installation.original_ftomn,
             original_hook_bytes=installation.original_hook_bytes,
-            soft_cut=configured.soft_cut,
             normal_ignition_raw=normal_ignition_raw,
         )
 
@@ -1860,7 +1813,6 @@ def main() -> int:
         verified_configuration = read_legacy_configuration(
             data,
             verified_installation.config_address,
-            data[verified_installation.ftomn_address],
         )
 
     verified_trigger = detect_launch_trigger(
@@ -1878,11 +1830,7 @@ def main() -> int:
         )
 
     verified_ftomn = data[verified_installation.ftomn_address]
-    expected_ftomn = (
-        FTOMN_SOFT_CUT
-        if verified_configuration.soft_cut
-        else FTOMN_HARD_CUT
-    )
+    expected_ftomn = FTOMN_HARD_CUT
 
     if verified_ftomn != expected_ftomn:
         raise LaunchError(
@@ -1892,11 +1840,7 @@ def main() -> int:
 
     ok("Configuration written")
     ok(f"Activation Trigger verified: {verified_trigger}")
-    ok(
-        f"Cut Mode verified: "
-        f"{'Soft Cut' if verified_configuration.soft_cut else 'Hard Cut'} "
-        f"(FTOMN 0x{verified_ftomn:02X})"
-    )
+    ok(f"Cut Mode verified: Hard Cut (FTOMN 0x{verified_ftomn:02X})")
     ok(
         "Launch Control verification passed "
         f"({'native' if installation.managed else 'compatible legacy'} mode)"
