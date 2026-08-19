@@ -22,7 +22,6 @@ You can configure:
 * ⚡ Throttle Threshold
 * ⏱️ Ignition Cut Duration
 * 🌡️ Minimum Temperature Threshold
-* 🔊 Soft Cut / Hard Cut
 * 🎮 Activation Trigger
 
   * Clutch ( Manual transmission )
@@ -93,18 +92,6 @@ me7sum.exe dump_mod.bin dump_csok.bin
 After this step, **dump_csok.bin** is ready to be flashed to the ECU.
 
 Automatic checksum correction will be added in a future release.
-
----
-
-# ⚠️ Soft Cut (Experimental)
-
-**Soft Cut** is currently considered an experimental feature.
-
-For the best results, the recommended setting is:
-
-* ✅ **Ignition Cut Duration = 20 ms**
-
-Using **200 ms** together with Soft Cut is **not recommended**, as it may produce undesirable Launch Control behavior.
 
 ---
 
